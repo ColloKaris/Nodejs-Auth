@@ -7,6 +7,7 @@ import { addTimestamps } from '../utils/db/addTimeStamps.js';
 import { User } from '../models/user.model.js';
 import { logger } from '../utils/logger.js';
 import { generateTokenAndSetCookie } from '../utils/jwt.js';
+import { sendVerificationEmail } from '../mailtrap/emails.js';
 
 export const signupHandler = async (
   req: Request<{}, {}, SignupInput>,
@@ -56,6 +57,9 @@ export const signupHandler = async (
       message: 'User Created Successfully',
       userId: result.insertedId.toString(),
     });
+
+  // Send verification email
+  await sendVerificationEmail(email, verificationCode);
 };
 
 export const loginHandler = async (req: Request, res: Response) => {};
