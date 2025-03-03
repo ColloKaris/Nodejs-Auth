@@ -7,12 +7,12 @@ export interface User {
   name: string;
   lastLogin: Date;
   isVerified: boolean;
-  resetPasswordToken: string;
-  resetPasswordExpiresAt: Date;
-  verificationToken: String;
-  verificatinTokenExpiresAt: Date;
+  resetPasswordCode: string | null;
+  resetPasswordCodeExpiresAt: Date | null;
+  verificationCode: String;
+  verificationCodeExpiresAt: Date;
   createdAt?: Date;
-  updateAt: Date;
+  updatedAt: Date;
 };
 
 export const userSchema = {
@@ -39,6 +39,26 @@ export const userSchema = {
       lastLogin: {
         bsonType: 'date',
         description: 'Date the user last logged in',
+      },
+      isVerified: {
+        bsonType: 'bool',
+        description: 'Check if user is verified',
+      },
+      resetPasswordCode: {
+        bsonType: ['string', 'null'],
+        description: 'JWT token used to reset user password',
+      },
+      resetPasswordCodeExpiresAt: {
+        bsonType: ['date', 'null'],
+        description: 'Expiration date for the reset password token',
+      },
+      verificationCode: {
+        bsonType: 'string',
+        description: 'JWT token used to verify user',
+      },
+      verificationCodeExpiresAt: {
+        bsonType: 'date',
+        description: 'Expiry date for the verification token',
       },
       createdAt: {
         bsonType: 'date',
