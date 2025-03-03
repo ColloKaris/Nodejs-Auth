@@ -34,3 +34,9 @@ export async function verifyUser(id: mongodb.ObjectId) {
   );
   return result;
 }
+
+export async function updateLastLogin(id: mongodb.ObjectId) {
+  const now = new Date();
+  const result = await collections.users?.updateOne({_id: id}, {$set: {lastLogin: now}});
+  return result;
+}

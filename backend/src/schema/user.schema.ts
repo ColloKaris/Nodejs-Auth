@@ -25,8 +25,16 @@ export const createVerifyEmailSchema = z.object({
   params: z.object({
     id: z.string({required_error: 'Id property is required'})
   })
+});
+
+export const createLoginSchema = z.object({
+  body: z.object({
+    email: z.string({required_error: 'Email is required'}).email('Invalid email address'),
+    password: z.string({required_error: 'Passsword is required'}).min(6, 'Password is too short')
+  })
 })
 
 export type SignupInput = z.TypeOf<typeof createSignupSchema>['body'];
 export type verifyEmailInput = z.TypeOf<typeof createVerifyEmailSchema>['body'];
 export type verifyEmailParams = z.TypeOf<typeof createVerifyEmailSchema>['params'];
+export type LoginInput = z.TypeOf<typeof createLoginSchema>['body'];
