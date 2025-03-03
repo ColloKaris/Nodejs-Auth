@@ -10,6 +10,7 @@ export const validate =
     // Zod applies default values when validatin the schema, req.body won't be updated
     const result = schema.safeParse({
       body: req.body,
+      params: req.params,
     });
 
     if (!result.success) {

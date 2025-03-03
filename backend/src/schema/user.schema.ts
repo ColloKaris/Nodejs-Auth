@@ -18,4 +18,15 @@ export const createSignupSchema = z.object({
   })
 });
 
+export const createVerifyEmailSchema = z.object({
+  body: z.object({
+    code: z.string({required_error: 'Verification code is required'})
+  }),
+  params: z.object({
+    id: z.string({required_error: 'Id property is required'})
+  })
+})
+
 export type SignupInput = z.TypeOf<typeof createSignupSchema>['body'];
+export type verifyEmailInput = z.TypeOf<typeof createVerifyEmailSchema>['body'];
+export type verifyEmailParams = z.TypeOf<typeof createVerifyEmailSchema>['params'];

@@ -1,13 +1,22 @@
 import { Request, Response } from 'express';
-import { SignupInput } from '../schema/user.schema.js';
-import { createNewUser, findUserByEmail } from '../services/user.service.js';
+import {
+  SignupInput,
+  verifyEmailInput,
+  verifyEmailParams,
+} from '../schema/user.schema.js';
+import {
+  createNewUser,
+  findUserByEmail,
+  findUserById,
+  verifyUser,
+} from '../services/user.service.js';
 import { ExpressError } from '../utils/ExpressError.js';
 import { hashPassword } from '../utils/passwordUtility.js';
 import { addTimestamps } from '../utils/db/addTimeStamps.js';
 import { User } from '../models/user.model.js';
 import { logger } from '../utils/logger.js';
 import { generateTokenAndSetCookie } from '../utils/jwt.js';
-import { sendVerificationEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail } from '../mailtrap/emails.js';
 
 export const signupHandler = async (
   req: Request<{}, {}, SignupInput>,
@@ -31,13 +40,14 @@ export const signupHandler = async (
   }
 
   const hashedPassword = await hashPassword(password);
+  const numVerificationCode = parseInt(verificationCode);
   const newUser: User = addTimestamps({
     email,
     password: hashedPassword,
     name,
     isVerified,
     lastLogin,
-    verificationCode,
+    verificationCode: numVerificationCode,
     verificationCodeExpiresAt,
     resetPasswordCode,
     resetPasswordCodeExpiresAt,
@@ -50,13 +60,11 @@ export const signupHandler = async (
   }
 
   const token = generateTokenAndSetCookie(res, result.insertedId.toString());
-  res
-    .status(201)
-    .json({
-      success: true,
-      message: 'User Created Successfully',
-      userId: result.insertedId.toString(),
-    });
+  res.status(201).json({
+    success: true,
+    message: 'User Created Successfully',
+    userId: result.insertedId.toString(),
+  });
 
   // Send verification email
   await sendVerificationEmail(email, verificationCode);
@@ -65,3 +73,36 @@ export const signupHandler = async (
 export const loginHandler = async (req: Request, res: Response) => {};
 
 export const logoutHandler = async (req: Request, res: Response) => {};
+
+export const verifyEmailHandler = async (req: Request, res: Response) => {
+  const { code } = req.body;
+  const id = req.params.id;
+
+  const user = await findUserById(id);
+  if (!user) {
+    throw new ExpressError('Failed to verify user', 500);
+  }
+
+  if (user.isVerified) {
+    res.status(200).json({ message: 'User is already verified' });
+    return;
+  }
+
+  //check if verification code matches
+  if (user.verificationCode === parseInt(code)) {
+    const result = await verifyUser(user._id);
+    if (
+      result?.acknowledged &&
+      result.matchedCount > 0 &&
+      result.modifiedCount > 0
+    ) {
+      await sendWelcomeEmail(user.email, user.name);
+      res
+        .status(200)
+        .json({ success: true, message: 'Verification Successful' });
+      return;
+    }
+    res.status(403).json({ message: 'Failed to verify user' });
+  }
+  res.status(403).json({ message: 'Verification Failed' });
+};
