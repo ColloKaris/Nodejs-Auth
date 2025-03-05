@@ -239,3 +239,15 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
   res.status(500).json({success: false, message: 'Failed to reset password'});
 };
+
+export const checkAuth = async (req: Request, res: Response) => {
+  if(!req.userId) {
+    throw new ExpressError('Missing user id', 500)
+  }
+  const user = await findUserById(req.userId);
+  if(!user) {
+    res.status(400).json({success: true, message: 'User not found'});
+    return;
+  }
+  res.status(200).json({success: true, user: {_id: user._id, name: user.name}})
+};
