@@ -34,7 +34,26 @@ export const createLoginSchema = z.object({
   })
 })
 
-export type SignupInput = z.TypeOf<typeof createSignupSchema>['body'];
-export type verifyEmailInput = z.TypeOf<typeof createVerifyEmailSchema>['body'];
-export type verifyEmailParams = z.TypeOf<typeof createVerifyEmailSchema>['params'];
-export type LoginInput = z.TypeOf<typeof createLoginSchema>['body'];
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.string({required_error: 'Email is required'}).email('Invalid email address')
+  })
+})
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    password: z.string({required_error: 'Password is required'}).min(6, 'Password is too short')
+  }),
+  params: z.object({
+    resetCode: z.string({required_error: 'Resetcode is required'})
+  })
+})
+
+export type SignupInput = z.infer<typeof createSignupSchema>['body'];
+export type verifyEmailInput = z.infer<typeof createVerifyEmailSchema>['body'];
+export type verifyEmailParams = z.infer<typeof createVerifyEmailSchema>['params'];
+export type LoginInput = z.infer<typeof createLoginSchema>['body'];
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
+
+export type ResetPasswordParams = z.infer<typeof resetPasswordSchema>['params'];
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];

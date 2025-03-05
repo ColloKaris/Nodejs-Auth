@@ -1,6 +1,12 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
+import { nanoid } from 'nanoid';
+import config from 'config';
+
 import {
+  ForgotPasswordInput,
   LoginInput,
+  ResetPasswordInput,
+  ResetPasswordParams,
   SignupInput,
   verifyEmailInput,
   verifyEmailParams,
@@ -9,7 +15,10 @@ import {
   createNewUser,
   findUserByEmail,
   findUserById,
+  findUserByResetCode,
+  setNewPassword,
   updateLastLogin,
+  updatePasswordResetCode,
   verifyUser,
 } from '../services/user.service.js';
 import { ExpressError } from '../utils/ExpressError.js';
@@ -18,7 +27,12 @@ import { addTimestamps } from '../utils/db/addTimeStamps.js';
 import { User } from '../models/user.model.js';
 import { logger } from '../utils/logger.js';
 import { generateTokenAndSetCookie } from '../utils/jwt.js';
-import { sendVerificationEmail, sendWelcomeEmail } from '../mailtrap/emails.js';
+import {
+  sendPasswordResetEmail,
+  sendResetSuccessEmail,
+  sendVerificationEmail,
+  sendWelcomeEmail,
+} from '../mailtrap/emails.js';
 
 export const signupHandler = async (
   req: Request<{}, {}, SignupInput>,
@@ -146,6 +160,82 @@ export const verifyEmailHandler = async (req: Request, res: Response) => {
       return;
     }
     res.status(403).json({ message: 'Failed to verify user' });
+    return;
   }
   res.status(403).json({ message: 'Verification Failed' });
+};
+
+export const forgotPassword = async (
+  req: Request<{}, {}, ForgotPasswordInput>,
+  res: Response
+) => {
+  const { email } = req.body;
+  const jsonResponsePayload = {
+    message:
+      'If a user with that email is registered you will receive a password reset email',
+  };
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    res.status(200).json(jsonResponsePayload);
+    return;
+  }
+
+  if (!user.isVerified) {
+    res.status(200).json({ success: false, message: 'User is not verified' });
+  }
+
+  const passwordResetCode = nanoid();
+  const passwordResetCodeExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1hr
+  const result = await updatePasswordResetCode(
+    user._id,
+    passwordResetCode,
+    passwordResetCodeExpiresAt
+  );
+
+  if (
+    result?.acknowledged &&
+    result.matchedCount > 0 &&
+    result.modifiedCount > 0
+  ) {
+    const clientUrl = config.get<string>('client_url');
+    await sendPasswordResetEmail(
+      email,
+      `${clientUrl}reset-password/${passwordResetCode}`
+    );
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Password reset link sent to your email',
+      });
+    return;
+  }
+
+  res.status(500).json({ success: false, message: 'Password reset Failed' });
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { resetCode } = req.params;
+  const { password } = req.body;
+
+  const user = await findUserByResetCode(resetCode);
+  if(!user) {
+    res.status(400).json({success: false, message: 'Invalid or expired reset token'});
+    return;
+  };
+
+  const hashedPassword = await hashPassword(password);
+
+  const result = await setNewPassword(user._id, hashedPassword);
+  if (
+    result?.acknowledged &&
+    result.matchedCount > 0 &&
+    result.modifiedCount > 0
+  ) {
+    await sendResetSuccessEmail(user.email);
+    res.status(200).json({success: true, message: 'Password reset successful'});
+    return;
+  }
+  res.status(500).json({success: false, message: 'Failed to reset password'});
 };
